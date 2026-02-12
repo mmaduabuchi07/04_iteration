@@ -257,25 +257,47 @@ This approach creates a bit of a brain-twist, since we are creating data sets (a
 
 
 ```{r}
-nematode_mods 
+nematode_mods <- nematode_w %>%
   # Pivotting longer for the response variables
+  pivot_longer(cols = mel_s:eggs_r,
+               names_to = "resp_var",
+               values_to = "resp_val"
+               ) %>%
 
-  # Pivotting longer for the explanatory variables  
+  # Pivotting longer for the explanatory variables 
+  pivot_longer(cols = b:nli,
+               names_to = "exp_var",
+               values_to = "exp_val"
+               ) %>%
+  arrange(resp_var, exp_var) %>%
 
   # Creating groups of resp_var and exp_var
+  group_by(resp_var, exp_var) %>%
+  nest() %>%
 
   # Applying linear model to each element
+  mutate(lm = map(data,
+    ~lm(resp_val ~ exp_val,
+        data = .x
+        )
+  )) %>%
 
   # Extracting R2 for each element  
+  mutate(r2 = map(lm,
+                  ~summary(.x)$r.squared
+                  ))
 
-
+nematode_mods$r2[1]
 ```
 Above we used the `map()` function because we only had one iterating element (i.e., data).  
 
 Now, let's unnest the r2 values, then only keep the largest r2 for each response variable, and make some plots.  
 
 ```{r}
-nematode_mods_sel 
+nematode_mods_sel <- nematode_mods %>%
+  unnest(r2)%>%
+  group_by(resp_var) %>%
+  slice_max(r2)
 
 
 nematode_mods_sel
